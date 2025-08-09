@@ -38,6 +38,7 @@ endif()
 
 # Define project root directory
 add_definitions(-DROOT_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/\")
+add_definitions(-DOUTPUT_DIR=\"/root/code/datasets/fastlivo2/output/\")
 
 # Detect CPU core count for potential multithreading optimization
 include(ProcessorCount)
