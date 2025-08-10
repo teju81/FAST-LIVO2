@@ -109,6 +109,8 @@ void LIVMapper::readParameters(ros::NodeHandle &nh)
   nh.param<bool>("publish/pub_effect_point_en", pub_effect_point_en, false);
   nh.param<bool>("publish/dense_map_en", dense_map_en, false);
 
+  nh.param<bool>("path/output_dir", fastlivo::output_dir, "/root/code/datasets/fastlivo2/output");
+
   p_pre->blind_sqr = p_pre->blind * p_pre->blind;
 }
 
