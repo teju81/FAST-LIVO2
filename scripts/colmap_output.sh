@@ -1,9 +1,12 @@
 #!/bin/bash
 
 TARGET_DIRS=(
-    "/root/code/datasets/fastlivo2/output/Log/Colmap/images"
-    "/root/code/datasets/fastlivo2/output/Log/Colmap/sparse/0"
+    "/root/code/datasets/hilti/2022/output/Log/Colmap/images"
+    "/root/code/datasets/hilti/2022/output/Log/Colmap/sparse/0"
 )
+
+# "/root/code/datasets/fastlivo2/output/Log/Colmap/images"
+# "/root/code/datasets/fastlivo2/output/Log/Colmap/sparse/0"
 
 for dir in "${TARGET_DIRS[@]}"; do
     if [ -d "$dir" ]; then
