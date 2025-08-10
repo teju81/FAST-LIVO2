@@ -1,4 +1,4 @@
-cam_model: EquidistantCamera
+cam_model: Pinhole # EquidistantCamera
 cam_width: 720
 cam_height: 540
 scale: 1.0
