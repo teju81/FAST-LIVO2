@@ -13,6 +13,7 @@ which is included as part of this source code package.
 #ifndef VIO_H_
 #define VIO_H_
 
+#include<globals.h>
 #include "voxel_map.h"
 #include "feature.h"
 #include <opencv2/imgproc/imgproc_c.h>
