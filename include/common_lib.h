@@ -13,6 +13,7 @@ which is included as part of this source code package.
 #ifndef COMMON_LIB_H
 #define COMMON_LIB_H
 
+#include<globals.h>
 #include <utils/so3_math.h>
 #include <utils/types.h>
 #include <utils/color.h>
@@ -33,7 +34,7 @@ using namespace Sophus;
 #define SIZE_SMALL (100)
 #define VEC_FROM_ARRAY(v) v[0], v[1], v[2]
 #define MAT_FROM_ARRAY(v) v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]
-#define DEBUG_FILE_DIR(name) (string(string(OUTPUT_DIR) + "Log/" + name))
+#define DEBUG_FILE_DIR(name) (string(string(fastlivo::output_dir) + "Log/" + name))
 
 enum LID_TYPE
 {
