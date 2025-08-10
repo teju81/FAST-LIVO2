@@ -95,4 +95,4 @@ pcd_save:
   # -1 : all frames will be saved in ONE pcd file, may lead to memory crash when having too much frames.
 
 path:
-  output_dir: "/root/code/datasets/hilti/2022/output"
+  output_dir: "/root/code/datasets/hilti/2022/output/"
