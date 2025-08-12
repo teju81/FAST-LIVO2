@@ -85,12 +85,262 @@ void Preprocess::process(const sensor_msgs::PointCloud2::ConstPtr &msg, PointClo
     robosense_handler(msg);
     break;
 
+  case LIVOX_MID360:
+    mid360_handler(msg);
+    break;
+
   default:
     printf("Error LiDAR Type: %d \n", lidar_type);
     break;
   }
   *pcl_out = pl_surf;
 }
+
+
+void Preprocess::mid360_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
+{
+  pl_surf.clear();
+  pl_corn.clear();
+  pl_full.clear();
+
+  const size_t npts = static_cast<size_t>(msg->width) * msg->height;
+  if (npts == 0) return;
+
+  // Helper to find a field by name (exact match)
+  auto findField = [&](const std::string& name) -> const sensor_msgs::PointField* {
+    for (const auto& f : msg->fields) if (f.name == name) return &f;
+    return nullptr;
+  };
+
+  const auto *fx = findField("x");
+  const auto *fy = findField("y");
+  const auto *fz = findField("z");
+  if (!fx || !fy || !fz) {
+    ROS_ERROR("[Preprocess][Mid360] Missing x/y/z fields in PointCloud2");
+    return;
+  }
+
+  const auto *f_intensity   = findField("intensity");
+  const auto *f_reflect     = findField("reflectivity"); // fallback
+  const auto *f_line        = findField("line");
+  const auto *f_tag         = findField("tag");          // optional (first/strongest)
+  const auto *f_offset_time = findField("offset_time");
+  const auto *f_time        = findField("time");
+  const auto *f_timestamp   = findField("timestamp");
+
+  // Return filter: 0=all, 1=first, 2=strongest
+  const int return_mode = 1; // make this a param if you like
+
+  auto keep_by_tag = [&](uint8_t tag)->bool {
+    const uint8_t bits = tag & 0x30; // Livox uses [5:4]: 0x10 first, 0x20 strongest
+    if (return_mode == 1) return bits == 0x10;
+    if (return_mode == 2) return bits == 0x20;
+    return bits == 0x10 || bits == 0x20;
+  };
+
+  // Time base for 'timestamp' if absolute (we convert to relative ms)
+  double t0_ms = std::numeric_limits<double>::quiet_NaN();
+
+  pl_surf.reserve(npts);
+  pl_full.reserve(npts);
+  for (int i = 0; i < N_SCANS; ++i) {
+    pl_buff[i].clear();
+    pl_buff[i].reserve(npts / std::max(1, N_SCANS));
+  }
+
+  const bool do_feat = feature_enabled;
+
+  // Iterate raw bytes (handles mixed datatypes robustly)
+  const uint8_t* data = msg->data.data();
+  const uint32_t step = msg->point_step;
+
+  auto read_float = [&](const uint8_t* p, const sensor_msgs::PointField* f)->float {
+    if (!f) return 0.f;
+    switch (f->datatype) {
+      case sensor_msgs::PointField::FLOAT32: return *reinterpret_cast<const float*>(p + f->offset);
+      case sensor_msgs::PointField::FLOAT64: return static_cast<float>(*reinterpret_cast<const double*>(p + f->offset));
+      case sensor_msgs::PointField::UINT8:   return static_cast<float>(*reinterpret_cast<const uint8_t*>(p + f->offset));
+      case sensor_msgs::PointField::UINT16:  return static_cast<float>(*reinterpret_cast<const uint16_t*>(p + f->offset));
+      case sensor_msgs::PointField::UINT32:  return static_cast<float>(*reinterpret_cast<const uint32_t*>(p + f->offset));
+      case sensor_msgs::PointField::INT16:   return static_cast<float>(*reinterpret_cast<const int16_t*>(p + f->offset));
+      case sensor_msgs::PointField::INT32:   return static_cast<float>(*reinterpret_cast<const int32_t*>(p + f->offset));
+      default: return 0.f;
+    }
+  };
+
+  auto read_u8 = [&](const uint8_t* p, const sensor_msgs::PointField* f)->uint8_t {
+    if (!f) return 0;
+    if (f->datatype == sensor_msgs::PointField::UINT8)   return *reinterpret_cast<const uint8_t*>(p + f->offset);
+    if (f->datatype == sensor_msgs::PointField::INT8)    return static_cast<uint8_t>(*reinterpret_cast<const int8_t*>(p + f->offset));
+    if (f->datatype == sensor_msgs::PointField::UINT16)  return static_cast<uint8_t>(*reinterpret_cast<const uint16_t*>(p + f->offset));
+    if (f->datatype == sensor_msgs::PointField::INT16)   return static_cast<uint8_t>(*reinterpret_cast<const int16_t*>(p + f->offset));
+    if (f->datatype == sensor_msgs::PointField::UINT32)  return static_cast<uint8_t>(*reinterpret_cast<const uint32_t*>(p + f->offset));
+    if (f->datatype == sensor_msgs::PointField::FLOAT32) return static_cast<uint8_t>(*reinterpret_cast<const float*>(p + f->offset));
+    if (f->datatype == sensor_msgs::PointField::FLOAT64) return static_cast<uint8_t>(*reinterpret_cast<const double*>(p + f->offset));
+    return 0;
+  };
+
+
+  // helpers (top of function/file as needed)
+  auto u32_at = [&](const uint8_t* base, uint32_t off)->uint32_t {
+    uint32_t v;
+    std::memcpy(&v, base + off, sizeof(uint32_t));
+  #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    if (!msg->is_bigendian) { // host big-endian, msg little
+      v = __builtin_bswap32(v);
+    }
+  #else
+    if (msg->is_bigendian) { // host little-endian, msg big
+      v = __builtin_bswap32(v);
+    }
+  #endif
+    return v;
+  };
+
+  auto f32_at = [&](const uint8_t* base, uint32_t off)->float {
+    float v;
+    std::memcpy(&v, base + off, sizeof(float));
+    return v; // floats are fine regardless of msg endianness on most platforms used with ROS1
+  };
+
+  auto f64_at = [&](const uint8_t* base, uint32_t off)->double {
+    double v;
+    std::memcpy(&v, base + off, sizeof(double));
+    return v;
+  };
+
+
+  auto read_time_ms = [&](const uint8_t* p)->float {
+    // 1) offset_time: uint32 ns since scan start
+    if (f_offset_time) {
+      const uint32_t ns = u32_at(p, f_offset_time->offset);
+      return static_cast<float>(ns * 1e-6f);
+    }
+
+    // 2) time: float/double seconds
+    if (f_time) {
+      if (f_time->datatype == sensor_msgs::PointField::FLOAT32) {
+        return f32_at(p, f_time->offset) * 1000.f;
+      } else if (f_time->datatype == sensor_msgs::PointField::FLOAT64) {
+        return static_cast<float>(f64_at(p, f_time->offset) * 1000.0);
+      }
+    }
+
+    // 3) timestamp: either double seconds OR packed ns using UINT32 (count==1 or 2)
+    if (f_timestamp) {
+      if (f_timestamp->datatype == sensor_msgs::PointField::FLOAT64) {
+        double ts_ms = f64_at(p, f_timestamp->offset) * 1000.0;
+        if (!std::isfinite(t0_ms)) t0_ms = ts_ms;
+        return static_cast<float>(ts_ms - t0_ms);
+      } else if (f_timestamp->datatype == sensor_msgs::PointField::UINT32) {
+        // If count==2, combine two 32-bit words into uint64 ns: [lo, hi] at offsets +0, +4
+        if (f_timestamp->count >= 2) {
+          const uint64_t lo = static_cast<uint64_t>(u32_at(p, f_timestamp->offset + 0));
+          const uint64_t hi = static_cast<uint64_t>(u32_at(p, f_timestamp->offset + 4));
+          const uint64_t ns = (hi << 32) | lo;
+          return static_cast<float>(static_cast<double>(ns) * 1e-6);
+        } else {
+          const uint32_t ns = u32_at(p, f_timestamp->offset);
+          return static_cast<float>(ns * 1e-6f);
+        }
+      } else if (f_timestamp->datatype == sensor_msgs::PointField::INT32) {
+        const int32_t ns = static_cast<int32_t>(u32_at(p, f_timestamp->offset));
+        return static_cast<float>(static_cast<double>(ns) * 1e-6);
+      }
+    }
+
+    return 0.f;
+  };
+
+
+  uint32_t kept = 0;
+  float last_ms = 0.f;
+
+  for (size_t i = 0; i < npts; ++i) {
+    const uint8_t* p = data + i * step;
+
+    const float x = *reinterpret_cast<const float*>(p + fx->offset);
+    const float y = *reinterpret_cast<const float*>(p + fy->offset);
+    const float z = *reinterpret_cast<const float*>(p + fz->offset);
+    if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) continue;
+
+    // Optional tag filter for first/strongest
+    if (f_tag) {
+      const uint8_t tag = read_u8(p, f_tag);
+      if (!keep_by_tag(tag)) continue;
+    }
+
+    // line (0..5); default to 0 if absent
+    int line = 0;
+    if (f_line) line = static_cast<int>(read_u8(p, f_line));
+    if (line < 0 || line >= N_SCANS) line = 0;
+
+    // intensity
+    float inten = 0.f;
+    if (f_intensity)      inten = read_float(p, f_intensity);
+    else if (f_reflect)   inten = read_float(p, f_reflect);
+
+    // time in ms (kept in curvature like the rest of your code)
+    float t_ms = read_time_ms(p);
+
+    PointType q;
+    q.x = x; q.y = y; q.z = z;
+    q.intensity = inten;
+
+    // keep your existing "monotonic ms" smoothing used in Avia/no-feature path
+    if (!do_feat) {
+      if (i == 0) {
+        q.curvature = (std::fabs(t_ms) < 1.0f) ? t_ms : 0.0f;
+      } else {
+        q.curvature = (std::fabs(t_ms - last_ms) < 1.0f) ? t_ms : (last_ms + 0.004166667f);
+      }
+      last_ms = q.curvature;
+    } else {
+      q.curvature = t_ms;
+    }
+
+    // stride + range filter
+    ++kept;
+    if (!do_feat) {
+      if ((kept % point_filter_num) != 0) continue;
+      const float r2 = x*x + y*y + z*z;
+      if (r2 < blind_sqr) continue;
+      pl_surf.push_back(q);
+    } else {
+      pl_buff[line].push_back(q);
+    }
+  }
+
+  if (do_feat) {
+    // identical to your other handlers
+    static int count = 0; static double acc = 0.0;
+    ++count;
+    const double t0 = omp_get_wtime();
+    for (int j = 0; j < N_SCANS; ++j) {
+      auto& pl = pl_buff[j];
+      const int m = static_cast<int>(pl.size());
+      if (m <= 5) continue;
+
+      auto& types = typess[j];
+      types.clear();
+      types.resize(m);
+      for (int k = 0; k < m - 1; ++k) {
+        types[k].range = pl[k].x * pl[k].x + pl[k].y * pl[k].y;
+        vx = pl[k].x - pl[k+1].x;
+        vy = pl[k].y - pl[k+1].y;
+        vz = pl[k].z - pl[k+1].z;
+        types[k].dista = vx*vx + vy*vy + vz*vz;
+      }
+      types[m - 1].range = pl[m - 1].x * pl[m - 1].x + pl[m - 1].y * pl[m - 1].y;
+      give_feature(pl, types); // fills pl_surf/pl_corn
+    }
+    acc += omp_get_wtime() - t0;
+    printf("Feature extraction time (Mid360-PC2): %lf \n", acc / count);
+  }
+
+  printf("[ Preprocess ][Mid360-PC2] Output point number: %zu\n", pl_surf.points.size());
+}
+
 
 void Preprocess::avia_handler(const livox_ros_driver::CustomMsg::ConstPtr &msg)
 {
