@@ -9,11 +9,14 @@ rm -rf /root/code/datasets/fastlivo2/output/Log
 # --- Config ---
 SESSION="fastlivo2_ros_session"
 #ROS_BAG=${1:-"/root/code/datasets/fastlivo2/Retail_Street.bag"}
-ROS_BAG=${1:-"/root/code/datasets/hilti/2022/exp01_construction_ground_level.bag"}
+#ROS_BAG=${1:-"/root/code/datasets/hilti/2022/exp01_construction_ground_level.bag"}
+ROS_BAG=${1:-"/root/code/datasets_extra/ARTGarage/handheld/rosbag1_2025_07_24-17_36_52.bag"}
 
 # Command to run fastlivo2 mapping node + RViz + republish
 #LAUNCH_FASTLIVO2="roslaunch fast_livo mapping_avia.launch"
-LAUNCH_FASTLIVO2="roslaunch fast_livo mapping_hesaixt32_hilti22.launch"
+#LAUNCH_FASTLIVO2="roslaunch fast_livo mapping_hesaixt32_hilti22.launch"
+LAUNCH_FASTLIVO2="roslaunch fast_livo mapping_handheld.launch"
+
 # Command to play rosbag
 PLAY_ROSBAG="rosbag play $ROS_BAG"
 
