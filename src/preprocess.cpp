@@ -104,6 +104,13 @@ void Preprocess::mid360_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
   pl_full.clear();
 
   const size_t npts = static_cast<size_t>(msg->width) * msg->height;
+  printf("[ Preprocess ] Input point number: %d \n", npts);
+  
+
+  // printf("[ Preprocess ] height: %d, width: %d \n", msg->height, msg->width);
+  // for (const auto& f : msg->fields)
+  //   printf("[ Preprocess ] name: %s, offset: %d, datatype: %d, count: %d", f.name.c_str(), f.offset, f.datatype, f.count);
+
   if (npts == 0) return;
 
   // Helper to find a field by name (exact match)
@@ -148,7 +155,7 @@ void Preprocess::mid360_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
     pl_buff[i].reserve(npts / std::max(1, N_SCANS));
   }
 
-  const bool do_feat = feature_enabled;
+  const bool do_feat = false; //feature_enabled;
 
   // Iterate raw bytes (handles mixed datatypes robustly)
   const uint8_t* data = msg->data.data();
@@ -211,20 +218,20 @@ void Preprocess::mid360_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
 
 
   auto read_time_ms = [&](const uint8_t* p)->float {
-    // 1) offset_time: uint32 ns since scan start
-    if (f_offset_time) {
-      const uint32_t ns = u32_at(p, f_offset_time->offset);
-      return static_cast<float>(ns * 1e-6f);
-    }
+    // // 1) offset_time: uint32 ns since scan start
+    // if (f_offset_time) {
+    //   const uint32_t ns = u32_at(p, f_offset_time->offset);
+    //   return static_cast<float>(ns * 1e-6f);
+    // }
 
-    // 2) time: float/double seconds
-    if (f_time) {
-      if (f_time->datatype == sensor_msgs::PointField::FLOAT32) {
-        return f32_at(p, f_time->offset) * 1000.f;
-      } else if (f_time->datatype == sensor_msgs::PointField::FLOAT64) {
-        return static_cast<float>(f64_at(p, f_time->offset) * 1000.0);
-      }
-    }
+    // // 2) time: float/double seconds
+    // if (f_time) {
+    //   if (f_time->datatype == sensor_msgs::PointField::FLOAT32) {
+    //     return f32_at(p, f_time->offset) * 1000.f;
+    //   } else if (f_time->datatype == sensor_msgs::PointField::FLOAT64) {
+    //     return static_cast<float>(f64_at(p, f_time->offset) * 1000.0);
+    //   }
+    // }
 
     // 3) timestamp: either double seconds OR packed ns using UINT32 (count==1 or 2)
     if (f_timestamp) {
@@ -264,11 +271,11 @@ void Preprocess::mid360_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
     const float z = *reinterpret_cast<const float*>(p + fz->offset);
     if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) continue;
 
-    // Optional tag filter for first/strongest
-    if (f_tag) {
-      const uint8_t tag = read_u8(p, f_tag);
-      if (!keep_by_tag(tag)) continue;
-    }
+    // // Optional tag filter for first/strongest
+    // if (f_tag) {
+    //   const uint8_t tag = read_u8(p, f_tag);
+    //   if (!keep_by_tag(tag)) continue;
+    // }
 
     // line (0..5); default to 0 if absent
     int line = 0;
@@ -278,7 +285,7 @@ void Preprocess::mid360_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
     // intensity
     float inten = 0.f;
     if (f_intensity)      inten = read_float(p, f_intensity);
-    else if (f_reflect)   inten = read_float(p, f_reflect);
+    // else if (f_reflect)   inten = read_float(p, f_reflect);
 
     // time in ms (kept in curvature like the rest of your code)
     float t_ms = read_time_ms(p);
@@ -286,6 +293,7 @@ void Preprocess::mid360_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
     PointType q;
     q.x = x; q.y = y; q.z = z;
     q.intensity = inten;
+    //printf("point id: %d\n", i);
 
     // keep your existing "monotonic ms" smoothing used in Avia/no-feature path
     if (!do_feat) {
@@ -304,6 +312,7 @@ void Preprocess::mid360_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
     if (!do_feat) {
       if ((kept % point_filter_num) != 0) continue;
       const float r2 = x*x + y*y + z*z;
+      //printf("r2: %f\n", r2);
       if (r2 < blind_sqr) continue;
       pl_surf.push_back(q);
     } else {
