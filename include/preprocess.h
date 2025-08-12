@@ -170,6 +170,7 @@ public:
   ros::Publisher pub_full, pub_surf, pub_corn;
 
 private:
+  void mid360_handler(const sensor_msgs::PointCloud2::ConstPtr& msg);
   void avia_handler(const livox_ros_driver::CustomMsg::ConstPtr &msg);
   void oust64_handler(const sensor_msgs::PointCloud2::ConstPtr &msg);
   void velodyne_handler(const sensor_msgs::PointCloud2::ConstPtr &msg);
