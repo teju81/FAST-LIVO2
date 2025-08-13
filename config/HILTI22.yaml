@@ -94,5 +94,11 @@ pcd_save:
   # how many LiDAR frames saved in each pcd file;
   # -1 : all frames will be saved in ONE pcd file, may lead to memory crash when having too much frames.
 
+
+launch_file: "mapping_hesaixt32_hilti22.launch"
+
+dataset:
+  ros_bag: "/root/code/datasets/hilti/2022/exp01_construction_ground_level.bag"
+
 path:
   output_dir: "/root/code/datasets/hilti/2022/output/"
