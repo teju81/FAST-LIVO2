@@ -84,5 +84,12 @@ pcd_save:
   # how many LiDAR frames saved in each pcd file;
   # -1 : all frames will be saved in ONE pcd file, may lead to memory crash when having too much frames.
 
+
+
+launch_file: "mapping_handheld.launch"
+
+dataset:
+  ros_bag: "/root/code/datasets_extra/ARTGarage/handheld/rosbag1_2025_07_24-17_36_52.bag"
+
 path:
   output_dir: "/root/code/datasets/ARTGarage/handheld/output/"
