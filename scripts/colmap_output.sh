@@ -1,33 +1,34 @@
 #!/bin/bash
 
-TARGET_DIRS=(
-    "/root/code/datasets/ARTGarage/handheld/output/Log/Colmap/images"
-    "/root/code/datasets/ARTGarage/handheld/output/Log/Colmap/sparse/0"
-)
+
+echo "Functionality of this file has been moved to the fastlivo2 launch file script!!"
+# TARGET_DIRS=(
+#     "/root/code/datasets/ARTGarage/handheld/output/Log/Colmap/images"
+#     "/root/code/datasets/ARTGarage/handheld/output/Log/Colmap/sparse/0"
+# )
 
 # "/root/code/datasets/fastlivo2/output/Log/Colmap/images"
 # "/root/code/datasets/fastlivo2/output/Log/Colmap/sparse/0"
 
 
-    # "/root/code/datasets/hilti/2022/output/Log/Colmap/images"
-    # "/root/code/datasets/hilti/2022/output/Log/Colmap/sparse/0"
+# "/root/code/datasets/hilti/2022/output/Log/Colmap/images"
+# "/root/code/datasets/hilti/2022/output/Log/Colmap/sparse/0"
 
+# for dir in "${TARGET_DIRS[@]}"; do
+#     if [ -d "$dir" ]; then
+#         rm -rf "$dir"
+#         echo "Removed: $dir"
+#     else
+#         echo "Not found: $dir"
+#     fi
+# done
 
-for dir in "${TARGET_DIRS[@]}"; do
-    if [ -d "$dir" ]; then
-        rm -rf "$dir"
-        echo "Removed: $dir"
-    else
-        echo "Not found: $dir"
-    fi
-done
-
-for dir in "${TARGET_DIRS[@]}"; do
-    if [ ! -d "$dir" ]; then
-        mkdir -p "$dir"
-        echo "Created: $dir"
-    else
-        echo "Exists: $dir"
-    fi
-done
+# for dir in "${TARGET_DIRS[@]}"; do
+#     if [ ! -d "$dir" ]; then
+#         mkdir -p "$dir"
+#         echo "Created: $dir"
+#     else
+#         echo "Exists: $dir"
+#     fi
+# done
 
