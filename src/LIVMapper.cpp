@@ -181,7 +181,7 @@ void LIVMapper::initializeFiles()
       }
   }
   if(colmap_output_en) fout_points.open(std::string(fastlivo::output_dir) + "Log/Colmap/sparse/0/points3D.txt", std::ios::out);
-  if(pcd_save_interval > 0) fout_pcd_pos.open(std::string(ROOT_DIR) + "Log/PCD/scans_pos.json", std::ios::out);
+  if(pcd_save_interval > 0) fout_pcd_pos.open(std::string(fastlivo::output_dir) + "Log/PCD/scans_pos.json", std::ios::out);
   fout_pre.open(DEBUG_FILE_DIR("mat_pre.txt"), std::ios::out);
   fout_out.open(DEBUG_FILE_DIR("mat_out.txt"), std::ios::out);
 }
@@ -385,13 +385,13 @@ void LIVMapper::handleLIO()
     std::ofstream outFile, evoFile;
     if (!pos_opend) 
     {
-      evoFile.open(std::string(ROOT_DIR) + "Log/result/" + seq_name + ".txt", std::ios::out);
+      evoFile.open(std::string(fastlivo::output_dir) + "Log/result/" + seq_name + ".txt", std::ios::out);
       pos_opend = true;
       if (!evoFile.is_open()) ROS_ERROR("open fail\n");
     } 
     else 
     {
-      evoFile.open(std::string(ROOT_DIR) + "Log/result/" + seq_name + ".txt", std::ios::app);
+      evoFile.open(std::string(fastlivo::output_dir) + "Log/result/" + seq_name + ".txt", std::ios::app);
       if (!evoFile.is_open()) ROS_ERROR("open fail\n");
     }
     Eigen::Matrix4d outT;
@@ -482,8 +482,8 @@ void LIVMapper::savePCD()
 {
   if (pcd_save_en && (pcl_wait_save->points.size() > 0 || pcl_wait_save_intensity->points.size() > 0) && pcd_save_interval < 0) 
   {
-    std::string raw_points_dir = std::string(ROOT_DIR) + "Log/PCD/all_raw_points.pcd";
-    std::string downsampled_points_dir = std::string(ROOT_DIR) + "Log/PCD/all_downsampled_points.pcd";
+    std::string raw_points_dir = std::string(fastlivo::output_dir) + "Log/PCD/all_raw_points.pcd";
+    std::string downsampled_points_dir = std::string(fastlivo::output_dir) + "Log/PCD/all_downsampled_points.pcd";
     pcl::PCDWriter pcd_writer;
 
     if (img_en)
@@ -1201,7 +1201,7 @@ void LIVMapper::publish_frame_world(const ros::Publisher &pubLaserCloudFullRes, 
     if ((pcl_wait_save->size() > 0 || pcl_wait_save_intensity->size() > 0) && pcd_save_interval > 0 && scan_wait_num >= pcd_save_interval)
     {
       pcd_index++;
-      string all_points_dir(string(string(ROOT_DIR) + "Log/PCD/") + to_string(pcd_index) + string(".pcd"));
+      string all_points_dir(string(string(fastlivo::output_dir) + "Log/PCD/") + to_string(pcd_index) + string(".pcd"));
       pcl::PCDWriter pcd_writer;
       if (pcd_save_en)
       {
