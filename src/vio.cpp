@@ -1105,7 +1105,7 @@ void VIOManager::projectPatchFromRefToCur(const unordered_map<VOXEL_LOCATION, Vo
   // if(new_frame_->id_ != 2) return; //124
 
   int patch_size = 25;
-  string dir = string(ROOT_DIR) + "Log/ref_cur_combine/";
+  string dir = string(fastlivo::output_dir) + "Log/ref_cur_combine/";
 
   cv::Mat result = cv::Mat::zeros(height, width, CV_8UC1);
   cv::Mat result_normal = cv::Mat::zeros(height, width, CV_8UC1);
