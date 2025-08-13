@@ -8,17 +8,52 @@ rm -rf /root/code/datasets/fastlivo2/output/Log
 
 # --- Config ---
 SESSION="fastlivo2_ros_session"
-#ROS_BAG=${1:-"/root/code/datasets/fastlivo2/Retail_Street.bag"}
-#ROS_BAG=${1:-"/root/code/datasets/hilti/2022/exp01_construction_ground_level.bag"}
-ROS_BAG=${1:-"/root/code/datasets_extra/ARTGarage/handheld/rosbag1_2025_07_24-17_36_52.bag"}
+
+CONFIG_FILE="HILTI22.yaml" # avia.yaml or HILTI22.yaml
+
+CONFIG_DIR="/root/code/catkin_ws/src/FAST-LIVO2/config"
+CONFIG_FILE="${CONFIG_DIR}/${CONFIG_FILE}"
+
+ROS_BAG=$(yq '.dataset.ros_bag' $CONFIG_FILE)
+LAUNCH_FILE=$(yq '.launch_file' $CONFIG_FILE)
+OUTPUT_DIR=$(yq '.path.output_dir' $CONFIG_FILE)
+COLMAP_DIR="${OUTPUT_DIR}Log/Colmap/"
+
+TARGET_DIRS=(
+    "${COLMAP_DIR}images"
+    "${COLMAP_DIR}sparse/0"
+)
 
 # Command to run fastlivo2 mapping node + RViz + republish
-#LAUNCH_FASTLIVO2="roslaunch fast_livo mapping_avia.launch"
-#LAUNCH_FASTLIVO2="roslaunch fast_livo mapping_hesaixt32_hilti22.launch"
-LAUNCH_FASTLIVO2="roslaunch fast_livo mapping_handheld.launch"
+LAUNCH_FASTLIVO2="roslaunch fast_livo $LAUNCH_FILE"
 
 # Command to play rosbag
 PLAY_ROSBAG="rosbag play $ROS_BAG"
+
+echo "CONFIG_DIR: $CONFIG_DIR"
+echo "CONFIG_FILE: $CONFIG_FILE"
+echo "ROS_BAG: $ROS_BAG"
+echo "OUTPUT_DIR: $OUTPUT_DIR"
+echo "Play ROSBAG Command: $PLAY_ROSBAG"
+echo "LAUNCH_FASTLIVO2 Command: $LAUNCH_FASTLIVO2"
+
+for dir in "${TARGET_DIRS[@]}"; do
+    if [ -d "$dir" ]; then
+        rm -rf "$dir"
+        echo "Removed: $dir"
+    else
+        echo "Not found: $dir"
+    fi
+done
+
+for dir in "${TARGET_DIRS[@]}"; do
+    if [ ! -d "$dir" ]; then
+        mkdir -p "$dir"
+        echo "Created: $dir"
+    else
+        echo "Exists: $dir"
+    fi
+done
 
 # Create tmux session if it doesn't exist
 tmux has-session -t $SESSION 2>/dev/null
